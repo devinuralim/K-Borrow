@@ -1,0 +1,49 @@
+name: inventory_mobile
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  provider: ^6.0.5
+    
+  firebase_core: ^3.0.0
+  firebase_messaging: ^15.0.0
+  flutter_local_notifications: ^17.0.0
+  cupertino_icons: ^1.0.8
+  http: ^1.6.0
+  shared_preferences: ^2.5.5
+  image_picker: ^1.2.1
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: "^0.13.1"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/k2net.png
+    - assets/borrow.png # <--- Pastikan sudah didaftarkan di sini juga
+
+# --- KONFIGURASI IKON APLIKASI ---
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/borrow.png" # <--- Ganti ke borrow.png
+  min_sdk_android: 21 
+  adaptive_icon_background: "#1d3557"
+  adaptive_icon_foreground: "assets/borrow.png" # <--- Ganti ke borrow.png
+
+  notification_icon:
+    enabled: true
+    image_path: "assets/borrow.png"

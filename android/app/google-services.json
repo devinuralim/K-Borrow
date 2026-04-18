@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "188474557346",
+    "project_id": "k2net-inventory-a99bf",
+    "storage_bucket": "k2net-inventory-a99bf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:188474557346:android:8b8ccb60b1d2c62f1ee8fb",
+        "android_client_info": {
+          "package_name": "com.example.inventory_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4qhq_DUj4gxyAml8nPRiD235uYqapnh4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
