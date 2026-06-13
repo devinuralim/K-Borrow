@@ -5,7 +5,6 @@ import 'home_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
-  @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
@@ -18,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   // Warna diselaraskan dengan tema Midnight Navy di HomeScreen
   static const primaryNavy = Color(0xFF1d3557);
   static const gradientBlue = Color(0xFF457B9D);
-  
 
   void login() async {
     if (idController.text.isEmpty || passwordController.text.isEmpty) {
@@ -61,12 +59,14 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => isLoading = false);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Terjadi kesalahan: $e"), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text("Terjadi kesalahan: $e"),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
 
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -98,10 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    child: Image.asset(
-                      "assets/k2net.png",
-                      width: 110,
-                    ),
+                    child: Image.asset("assets/k2net.png", width: 110),
                   ),
                   const SizedBox(height: 40),
 
@@ -118,16 +115,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text(
                           "Inventory System",
                           style: TextStyle(
-                            color: Colors.white, 
-                            fontSize: 22, 
-                            fontWeight: FontWeight.bold, 
-                            letterSpacing: 0.5
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
                           ),
                         ),
                         const SizedBox(height: 5),
                         Text(
                           "Silakan login untuk melanjutkan",
-                          style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 13,
+                          ),
                         ),
                         const SizedBox(height: 30),
 
@@ -147,7 +147,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           icon: Icons.lock_outline_rounded,
                           isPassword: true,
                           showPassword: showPassword,
-                          togglePassword: () => setState(() => showPassword = !showPassword),
+                          togglePassword: () =>
+                              setState(() => showPassword = !showPassword),
                           onSubmitted: (_) => login(),
                         ),
                         const SizedBox(height: 30),
@@ -162,15 +163,26 @@ class _LoginScreenState extends State<LoginScreen> {
                               backgroundColor: Colors.white,
                               foregroundColor: primaryNavy,
                               elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
                             ),
                             child: isLoading
                                 ? const SizedBox(
-                                    width: 20, 
-                                    height: 20, 
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: primaryNavy)
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: primaryNavy,
+                                    ),
                                   )
-                                : const Text("LOGIN", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                                : const Text(
+                                    "LOGIN",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -180,9 +192,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     "© 2026 PT K2NET",
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.4), 
-                      fontSize: 11, 
-                      fontWeight: FontWeight.w500
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -212,12 +224,17 @@ class _LoginScreenState extends State<LoginScreen> {
       style: const TextStyle(color: Colors.white, fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+        labelStyle: TextStyle(
+          color: Colors.white.withOpacity(0.7),
+          fontSize: 14,
+        ),
         prefixIcon: Icon(icon, color: Colors.white70, size: 20),
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
-                  (showPassword ?? false) ? Icons.visibility : Icons.visibility_off,
+                  (showPassword ?? false)
+                      ? Icons.visibility
+                      : Icons.visibility_off,
                   color: Colors.white70,
                   size: 20,
                 ),

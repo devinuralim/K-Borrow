@@ -13,6 +13,8 @@ class AuthService {
 
     print("==== LOGIN START ====");
     try {
+      print("LOGIN URL: $url");
+      
       final response = await http.post(
         url,
         headers: {
@@ -23,7 +25,7 @@ class AuthService {
           "id_pegawai": idPegawai,
           "password": password,
         }),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
 
       print("STATUS CODE : ${response.statusCode}");
       final data = jsonDecode(response.body);

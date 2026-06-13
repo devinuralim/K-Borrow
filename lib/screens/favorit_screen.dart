@@ -1,82 +1,115 @@
 import 'package:flutter/material.dart';
 import '../models/barang_model.dart';
 import '../services/favorit_service.dart';
+import 'keranjang_screen.dart';
+import '../services/cart_service.dart';
 
-// Variabel warna tema tetap ada untuk branding biru
 const Color primaryBlue = Color(0xFF1d3557);
+const Color secondaryBlue = Color(0xFF457b9d);
+const Color backgroundGray = Color(0xFFF1F4F8);
+const Color darkBg = Color(0xFF0F172A);
+const Color darkCard = Color(0xFF1E293B);
 
 class FavoritScreen extends StatefulWidget {
   const FavoritScreen({super.key});
 
-  @override
   State<FavoritScreen> createState() => _FavoritScreenState();
 }
 
 class _FavoritScreenState extends State<FavoritScreen> {
   late Future<List<BarangModel>> futureFavorit;
+  List<BarangModel> allFavorit = [];
+  List<BarangModel> filteredFavorit = [];
+  Map<int, int> keranjang = {};
+  bool animasiKeranjang = false;
 
-  @override
+  int get totalItemDiKeranjang => CartService.totalItem;
+
   void initState() {
     super.initState();
+    keranjang = Map<int, int>.from(CartService.keranjang);
     _loadFavorit();
   }
 
   void _loadFavorit() {
+    futureFavorit = FavoritService.getFavorit();
+  }
+
+  void tambahBarang(BarangModel barang) {
     setState(() {
-      futureFavorit = FavoritService.getFavorit();
+      CartService.tambahBarang(barang);
+      keranjang[barang.id] = CartService.getJumlah(barang.id);
+      animasiKeranjang = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      setState(() => animasiKeranjang = false);
     });
   }
 
-  void _toggleFavorit(BarangModel barang) async {
-    final response = await FavoritService.toggleFavorit(barang.id);
+  void kurangBarang(BarangModel barang) {
+    setState(() {
+      CartService.kurangBarang(barang);
 
-    if (response != null && response['success'] == true) {
-      _loadFavorit(); // Refresh list
+      if (CartService.getJumlah(barang.id) == 0) {
+        keranjang.remove(barang.id);
+      } else {
+        keranjang[barang.id] = CartService.getJumlah(barang.id);
+      }
+    });
+  }
+
+  void _onSearch(String query) {
+    setState(() {
+      filteredFavorit = allFavorit
+          .where(
+            (b) =>
+                b.namaBarang.toLowerCase().contains(query.toLowerCase()) ||
+                (b.seri?.toLowerCase().contains(query.toLowerCase()) ?? false),
+          )
+          .toList();
+    });
+  }
+
+  void _toggleFav(BarangModel barang) async {
+    setState(() {
+      barang.isFavorit = false;
+      allFavorit.removeWhere((b) => b.id == barang.id);
+      filteredFavorit.removeWhere((b) => b.id == barang.id);
+    });
+
+    final res = await FavoritService.toggleFavorit(barang.id);
+
+    if (res == null || res['success'] != true) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response['message'] ?? "Berhasil memperbarui favorit"),
-          backgroundColor: primaryBlue,
-          duration: const Duration(milliseconds: 800),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Gagal mengubah favorit"),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+
+      setState(() {
+        barang.isFavorit = true;
+        _loadFavorit();
+      });
     }
   }
 
-  @override
   Widget build(BuildContext context) {
-    // Deteksi mode gelap
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final bgColor = isDark ? darkBg : backgroundGray;
+    final cardColor = isDark ? darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : primaryBlue;
+    final subTextColor = isDark ? Colors.white60 : Colors.grey;
+
     return Scaffold(
-      // 1. Gunakan warna background dari tema global
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
-        title: const Text("Barang Favorit",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      backgroundColor: bgColor,
       body: Column(
         children: [
-          // Header biru melengkung (tetap biru untuk branding)
           Container(
-            height: 20,
-            width: double.infinity,
+            padding: const EdgeInsets.only(
+              top: 50,
+              left: 20,
+              right: 20,
+              bottom: 20,
+            ),
             decoration: const BoxDecoration(
               color: primaryBlue,
               borderRadius: BorderRadius.only(
@@ -84,143 +117,101 @@ class _FavoritScreenState extends State<FavoritScreen> {
                 bottomRight: Radius.circular(25),
               ),
             ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Barang Favorit",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    _buildCartIcon(),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  onChanged: _onSearch,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: "Cari barang favorit...",
+                    hintStyle: TextStyle(
+                      color: isDark ? Colors.white38 : Colors.grey,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      size: 20,
+                      color: isDark ? Colors.white60 : Colors.grey,
+                    ),
+                    filled: true,
+                    fillColor: isDark ? darkCard : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  ),
+                ),
+              ],
+            ),
           ),
           Expanded(
             child: FutureBuilder<List<BarangModel>>(
               future: futureFavorit,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    allFavorit.isEmpty) {
                   return const Center(
-                      child: CircularProgressIndicator(color: primaryBlue));
+                    child: CircularProgressIndicator(color: primaryBlue),
+                  );
                 }
 
                 if (snapshot.hasError) {
                   return Center(
-                      child: Text("Terjadi error: ${snapshot.error}",
-                          style: const TextStyle(color: Colors.grey)));
+                    child: Text(
+                      "Gagal memuat favorit",
+                      style: TextStyle(color: subTextColor),
+                    ),
+                  );
                 }
 
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return _buildEmptyState(isDark);
+                if (snapshot.hasData && allFavorit.isEmpty) {
+                  allFavorit = snapshot.data!;
+                  filteredFavorit = snapshot.data!;
+
+                  for (var item in filteredFavorit) {
+                    item.isFavorit = true;
+                  }
                 }
 
-                final barangs = snapshot.data!;
+                if (filteredFavorit.isEmpty) {
+                  return _buildEmptyState(subTextColor);
+                }
 
-                return RefreshIndicator(
-                  onRefresh: () async => _loadFavorit(),
-                  color: primaryBlue,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: barangs.length,
-                    itemBuilder: (context, index) {
-                      final barang = barangs[index];
-                      barang.isFavorit = true; 
-                      bool isKosong = barang.stok <= 0;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          // 2. Gunakan warna card dari tema global
-                          color: Theme.of(context).cardTheme.color,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            )
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 15, vertical: 8),
-                              leading: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  // 3. Warna background icon adaptif
-                                  color: isKosong
-                                     ? Colors.red.withValues(alpha: 0.1)
-                                      : (isDark ? Colors.white10 : const Color(0xFFF1F4F8)),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.inventory_2_rounded,
-                                  color: isKosong ? Colors.red : (isDark ? Colors.blue[200] : primaryBlue),
-                                  size: 22,
-                                ),
-                              ),
-                              title: Text(
-                                barang.namaBarang,
-                                // 4. Warna teks adaptif
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : primaryBlue,
-                                    fontSize: 15),
-                              ),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  "SN: ${barang.seri ?? '-'}",
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark ? Colors.grey[400] : Colors.black54),
-                                ),
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.star_rounded,
-                                  color: Colors.amber,
-                                  size: 30,
-                                ),
-                                onPressed: () => _toggleFavorit(barang),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.category_outlined,
-                                          size: 14, color: Colors.grey),
-                                      const SizedBox(width: 5),
-                                      Text(
-                                        barang.jenisBarang,
-                                        style: const TextStyle(
-                                            color: Colors.grey, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                  // 5. Badge stok adaptif
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: isKosong
-                                          ? Colors.red.withValues(alpha: 0.15)
-                                          : (isDark ? Colors.green.withValues(alpha: 0.2) : const Color(0xFFE8F5E9)),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      isKosong ? "STOK HABIS" : "STOK: ${barang.stok}",
-                                      style: TextStyle(
-                                        color: isKosong ? Colors.redAccent : (isDark ? Colors.green[300] : Colors.green[700]),
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.75,
                   ),
+                  itemCount: filteredFavorit.length,
+                  itemBuilder: (context, index) {
+                    return _buildGridItem(
+                      filteredFavorit[index],
+                      cardColor,
+                      textColor,
+                      subTextColor,
+                      isDark,
+                    );
+                  },
                 );
               },
             ),
@@ -230,30 +221,208 @@ class _FavoritScreenState extends State<FavoritScreen> {
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.star_border_rounded, 
-               size: 80, 
-               color: isDark ? Colors.white10 : Colors.grey[300]),
-          const SizedBox(height: 15),
-          Text(
-            "Belum ada barang favorit",
-            style: TextStyle(
-                color: isDark ? Colors.grey[500] : Colors.grey, 
-                fontWeight: FontWeight.w500),
+  Widget _buildCartIcon() {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => KeranjangScreen(
+              keranjang: CartService.keranjang,
+              semuaBarang: CartService.semuaBarang,
+            ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            "Klik ikon bintang pada daftar barang\nuntuk menambahkan ke sini.",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                color: isDark ? Colors.grey[600] : Colors.grey[400], 
-                fontSize: 12),
+        );
+      },
+      child: AnimatedScale(
+        scale: animasiKeranjang ? 1.25 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutBack,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Icon(
+              Icons.shopping_cart_outlined,
+              color: Colors.white,
+              size: 26,
+            ),
+            if (totalItemDiKeranjang > 0)
+              Positioned(
+                right: -7,
+                top: -7,
+                child: AnimatedScale(
+                  scale: animasiKeranjang ? 1.25 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$totalItemDiKeranjang',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridItem(
+    BarangModel item,
+    Color cardColor,
+    Color textColor,
+    Color subTextColor,
+    bool isDark,
+  ) {
+    final bool isKosong = item.stok <= 0;
+    final int jumlah = CartService.getJumlah(item.id);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.transparent),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
+            blurRadius: 8,
           ),
         ],
+      ),
+      child: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 1.2,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: item.fotoBarang != null && item.fotoBarang!.isNotEmpty
+                      ? Image.network(
+                          item.fotoBarang!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        )
+                      : Container(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : Colors.grey[200],
+                          child: Center(
+                            child: Icon(
+                              Icons.inventory_2,
+                              color: isDark ? Colors.white38 : Colors.grey,
+                            ),
+                          ),
+                        ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () => _toggleFav(item),
+                    child: const Icon(Icons.star, color: Colors.amber),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.namaBarang,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: textColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  "SN: ${item.seri ?? '-'}",
+                  style: TextStyle(fontSize: 10, color: subTextColor),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isKosong ? "Habis" : "Stok: ${item.stok}",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isKosong ? Colors.red : Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        if (jumlah > 0) ...[
+                          GestureDetector(
+                            onTap: () => kurangBarang(item),
+                            child: const Icon(
+                              Icons.remove_circle_outline,
+                              size: 28,
+                              color: Colors.red,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Text(
+                              '$jumlah',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                        GestureDetector(
+                          onTap: isKosong || jumlah >= item.stok
+                              ? null
+                              : () => tambahBarang(item),
+                          child: Icon(
+                            Icons.add_circle,
+                            size: 30,
+                            color: isKosong
+                                ? Colors.grey
+                                : isDark
+                                ? Colors.cyanAccent
+                                : primaryBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(Color subTextColor) {
+    return Center(
+      child: Text(
+        "Belum ada barang favorit",
+        style: TextStyle(color: subTextColor, fontWeight: FontWeight.w500),
       ),
     );
   }

@@ -2,126 +2,227 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
-import 'package:http/http.dart' as http;
-import '../config/app_config.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<SplashScreen> createState() {
+    return _SplashScreenState();
+  }
 }
 
-class _SplashScreenState extends State<SplashScreen> {
-  @override
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  static const Color primaryBlue = Color(0xFF1d3557);
+  static const Color secondaryBlue = Color(0xFF457b9d);
+  static const Color accentBlue = Color(0xFFa8dadc);
+
   void initState() {
     super.initState();
-    checkLogin();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
+    );
+
+    _scaleAnimation = Tween<double>(
+      begin: 0.92,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.18),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _controller.forward();
+    _checkLogin();
   }
 
-  void checkLogin() async {
-    // Jeda 2 detik supaya transisi ke aplikasi terasa halus
-    await Future.delayed(const Duration(milliseconds: 2000));
+  Future<void> _checkLogin() async {
+    await Future.delayed(const Duration(milliseconds: 2200));
 
     if (!mounted) return;
+
     final token = await AuthService.getToken();
 
-    // 1. Jika tidak ada token (Belum login)
-    if (token == null || token.isEmpty) {
+    if (!mounted) return;
+
+    if (token != null && token.isNotEmpty) {
+      _goToHome();
+    } else {
       _goToLogin();
-      return;
-    }
-
-    // 2. Cek validitas token ke server
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/api/v1/barang'), 
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 5)); // Timeout 5 detik agar tidak terlalu lama
-
-      if (response.statusCode == 200) {
-        _goToHome();
-      } else {
-        await AuthService.logout();
-        _goToLogin();
-      }
-    } catch (e) {
-      // Jika koneksi error, asumsikan masuk saja dulu ke Home
-      // (Nanti di Home akan handle error saat fetch data dashboard)
-      debugPrint("Koneksi Error di Splash: $e");
-      _goToHome(); 
     }
   }
 
   void _goToLogin() {
-    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          // Efek pudar (Fade) agar perpindahan ke login terasa smooth
-          return FadeTransition(opacity: animation, child: child);
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return const LoginScreen();
         },
-        transitionDuration: const Duration(milliseconds: 600),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 500),
       ),
     );
   }
 
   void _goToHome() {
-    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          // Efek pudar (Fade) agar perpindahan ke beranda terasa smooth
-          return FadeTransition(opacity: animation, child: child);
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return const HomeScreen();
         },
-        transitionDuration: const Duration(milliseconds: 600),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 500),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    const primaryNavy = Color(0xFF1d3557);
-    const accentBlue = Color(0xFFa8dadc); // Accent blue dari tema Beranda
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
+  Widget _circle({
+    required double size,
+    required Alignment alignment,
+    required double opacity,
+  }) {
+    return Align(
+      alignment: alignment,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withOpacity(opacity),
+        ),
+      ),
+    );
+  }
+
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: primaryNavy,
+      backgroundColor: primaryBlue,
       body: Stack(
         children: [
-          // LOADING DI BAWAH (MINIMALIS)
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  primaryBlue,
+                  Color(0xFF24496F),
+                  secondaryBlue,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          _circle(
+            size: 260,
+            alignment: const Alignment(-1.2, -1.05),
+            opacity: 0.10,
+          ),
+          _circle(
+            size: 180,
+            alignment: const Alignment(1.15, -0.45),
+            opacity: 0.08,
+          ),
+          _circle(
+            size: 240,
+            alignment: const Alignment(1.25, 1.15),
+            opacity: 0.10,
+          ),
+          Center(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "K-BORROW",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2.2,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "Inventory Borrowing System",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.78),
+                          fontSize: 13,
+                          letterSpacing: 0.8,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 38),
+                      const SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: CircularProgressIndicator(
+                          color: accentBlue,
+                          strokeWidth: 3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 60.0), // Jarak dari bawah layar
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: accentBlue, // Spinner pakai warna accent agar senada
-                      strokeWidth: 2.5,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "K-BORROW v1.0",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.3),
-                      fontSize: 10,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.only(bottom: 36),
+              child: Text(
+                "K2NET Inventory Mobile",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.50),
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
           ),

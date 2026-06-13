@@ -1,18 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Import Screen
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/riwayat_peminjaman_screen.dart';
-
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-}
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -20,120 +16,167 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
   'high_importance_channel',
   'High Importance Notifications',
+  description: 'Channel untuk notifikasi penting',
   importance: Importance.max,
   playSound: true,
 );
 
-void main() async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  await saveFcmNotification(message);
+}
+
+Future<void> saveFcmNotification(RemoteMessage message) async {
+  final prefs = await SharedPreferences.getInstance();
+  final oldData = prefs.getStringList('fcm_notifications') ?? [];
+
+  final String title =
+      message.notification?.title ?? message.data['title'] ?? 'Notifikasi';
+
+  final String body =
+      message.notification?.body ??
+      message.data['body'] ??
+      message.data['message'] ??
+      '';
+
+  final notif = {
+    'id': DateTime.now().millisecondsSinceEpoch.toString(),
+    'title': title,
+    'body': body,
+    'screen': message.data['screen'] ?? '',
+    'created_at': DateTime.now().toIso8601String(),
+  };
+
+  oldData.insert(0, jsonEncode(notif));
+
+  if (oldData.length > 50) {
+    oldData.removeRange(50, oldData.length);
+  }
+
+  await prefs.setStringList('fcm_notifications', oldData);
+}
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await Firebase.initializeApp();
 
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    // 1. Setup Channel untuk Android
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
-    // 2. Inisialisasi Local Notifications (PENTING!)
     await flutterLocalNotificationsPlugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
     );
-
-    // 3. Minta izin notifikasi (Khusus Android 13+)
     await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
-
   } catch (e) {
     debugPrint('Firebase Error: $e');
   }
 
   final prefs = await SharedPreferences.getInstance();
-  bool savedDarkMode = prefs.getBool('isDarkMode') ?? false;
+  final bool savedDarkMode = prefs.getBool('isDarkMode') ?? false;
 
   runApp(MyApp(savedDarkMode: savedDarkMode));
 }
 
 class MyApp extends StatefulWidget {
   final bool savedDarkMode;
+
   const MyApp({super.key, required this.savedDarkMode});
 
   static final ValueNotifier<ThemeMode> themeNotifier =
-      ValueNotifier(ThemeMode.light);
+      ValueNotifier<ThemeMode>(ThemeMode.light);
 
-  @override
-  State<MyApp> createState() => _MyAppState();
+  State<MyApp> createState() {
+    return _MyAppState();
+  }
 }
 
 class _MyAppState extends State<MyApp> {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-  @override
   void initState() {
     super.initState();
-    MyApp.themeNotifier.value =
-        widget.savedDarkMode ? ThemeMode.dark : ThemeMode.light;
 
-    // Jalankan listener notifikasi
-    _setupNotificationListeners();
+    MyApp.themeNotifier.value = widget.savedDarkMode
+        ? ThemeMode.dark
+        : ThemeMode.light;
+
+    setupNotificationListeners();
     setupInteractedMessage();
   }
 
-  // 🔥 FUNGSI BARU: Agar notifikasi muncul saat aplikasi TERBUKA (Foreground)
-  void _setupNotificationListeners() {
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
+  void setupNotificationListeners() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      await saveFcmNotification(message);
 
-      if (notification != null && android != null) {
-        flutterLocalNotificationsPlugin.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              channel.id,
-              channel.name,
-              channelDescription: channel.description,
-              icon: '@mipmap/ic_launcher',
-              importance: Importance.max,
-              priority: Priority.high,
-              playSound: true,
-            ),
+      final RemoteNotification? notification = message.notification;
+
+      final String title =
+          notification?.title ?? message.data['title'] ?? 'Notifikasi';
+
+      final String body =
+          notification?.body ??
+          message.data['body'] ??
+          message.data['message'] ??
+          '';
+
+      await flutterLocalNotificationsPlugin.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            icon: '@mipmap/ic_launcher',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
           ),
-        );
-      }
+        ),
+      );
     });
   }
 
   Future<void> setupInteractedMessage() async {
-    RemoteMessage? initialMessage =
-        await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) _handleMessage(initialMessage);
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
-  }
+    final RemoteMessage? initialMessage = await FirebaseMessaging.instance
+        .getInitialMessage();
 
-  void _handleMessage(RemoteMessage message) {
-    if (message.data['screen'] == 'HOME_SCREEN' ||
-        message.data['screen'] == 'notification_center') {
-      navigatorKey.currentState
-          ?.pushNamedAndRemoveUntil('/home', (route) => false);
+    if (initialMessage != null) {
+      await saveFcmNotification(initialMessage);
+      handleMessage(initialMessage);
     }
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      await saveFcmNotification(message);
+      handleMessage(message);
+    });
   }
 
-  @override
+  void handleMessage(RemoteMessage message) {
+    navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/home',
+      (route) => false,
+    );
+  }
+
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: MyApp.themeNotifier,
-      builder: (context, currentMode, _) {
+      builder: (context, currentMode, child) {
         return MaterialApp(
           navigatorKey: navigatorKey,
           debugShowCheckedModeBanner: false,
@@ -144,7 +187,9 @@ class _MyAppState extends State<MyApp> {
             useMaterial3: true,
             primaryColor: const Color(0xFF1d3557),
             scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1d3557)),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF1d3557),
+            ),
           ),
           darkTheme: ThemeData(
             brightness: Brightness.dark,

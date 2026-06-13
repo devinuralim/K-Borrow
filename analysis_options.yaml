@@ -2,17 +2,17 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   errors:
-    # Ini cara mematikan "unused_field" dan teman-temannya yang bandel
     unused_field: ignore
     unused_local_variable: ignore
     unused_import: ignore
     deprecated_member_use: ignore
     use_build_context_synchronously: ignore
+    annotate_overrides: ignore
 
 linter:
   rules:
-    # Ini untuk mematikan warning kuning yang sering muncul di widget
     prefer_const_constructors: false
     prefer_const_literals_to_create_immutables: false
     prefer_final_fields: false
     avoid_print: false
+    annotate_overrides: false
