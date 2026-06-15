@@ -5,11 +5,15 @@ import 'barang_screen.dart';
 
 const Color primaryBlue = Color(0xFF1d3557);
 const Color secondaryBlue = Color(0xFF457b9d);
-const Color backgroundGray = Color(0xFFF1F4F8);
+const Color backgroundGray = Color(0xFFF6F8FC);
+const Color darkBg = Color(0xFF0F172A);
+const Color darkCard = Color(0xFF1E293B);
+const Color accentBlue = Color(0xFFa8dadc);
 
 class KeranjangScreen extends StatefulWidget {
   final Map<int, int> keranjang;
   final List<BarangModel> semuaBarang;
+
   const KeranjangScreen({
     super.key,
     required this.keranjang,
@@ -29,16 +33,19 @@ class _KeranjangScreenState extends State<KeranjangScreen> {
 
   void _tambahJumlah(BarangModel barang) {
     final jumlahSekarang = localKeranjang[barang.id] ?? 0;
+
     if (jumlahSekarang >= barang.stok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Jumlah melebihi stok yang tersedia!"),
           backgroundColor: Colors.orange,
-          duration: Duration(milliseconds: 800),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 900),
         ),
       );
       return;
     }
+
     setState(() {
       localKeranjang[barang.id] = jumlahSekarang + 1;
       widget.keranjang[barang.id] = localKeranjang[barang.id]!;
@@ -47,7 +54,9 @@ class _KeranjangScreenState extends State<KeranjangScreen> {
 
   void _kurangJumlah(BarangModel barang) {
     final jumlahSekarang = localKeranjang[barang.id] ?? 0;
+
     if (jumlahSekarang <= 0) return;
+
     setState(() {
       if (jumlahSekarang > 1) {
         localKeranjang[barang.id] = jumlahSekarang - 1;
@@ -61,269 +70,437 @@ class _KeranjangScreenState extends State<KeranjangScreen> {
 
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isDark ? darkBg : backgroundGray;
+    final cardColor = isDark ? darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : primaryBlue;
+    final subTextColor = isDark ? Colors.white60 : Colors.grey.shade600;
+    final borderColor = isDark ? Colors.white10 : Colors.grey.shade200;
+
     final items = widget.semuaBarang
         .where((barang) => localKeranjang.containsKey(barang.id))
         .toList();
+
+    int totalJumlah = 0;
+    for (final item in items) {
+      totalJumlah += localKeranjang[item.id] ?? 0;
+    }
+
     return Scaffold(
-      backgroundColor: isDark ? Colors.grey[900] : backgroundGray,
-      appBar: AppBar(
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
-        title: const Text(
-          "Keranjang Peminjaman",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 15 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: Column(
+            children: [
+              _buildHeader(
+                isDark: isDark,
+                cardColor: cardColor,
+                textColor: textColor,
+                subTextColor: subTextColor,
+                borderColor: borderColor,
+                itemCount: items.length,
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: items.isEmpty
+                    ? _buildEmptyState(isDark, subTextColor)
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final barang = items[index];
+                          final jumlah = localKeranjang[barang.id] ?? 0;
+
+                          return _buildCartItem(
+                            barang: barang,
+                            jumlah: jumlah,
+                            isDark: isDark,
+                            cardColor: cardColor,
+                            textColor: textColor,
+                            subTextColor: subTextColor,
+                            borderColor: borderColor,
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
         ),
-        centerTitle: true,
-        elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: IconButton(
-              tooltip: "Tambah Barang",
-              icon: const Icon(
-                Icons.add_circle_outline_rounded,
-                size: 28,
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const BarangScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Container(
-            height: 15,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              color: primaryBlue,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(25),
-                bottomRight: Radius.circular(25),
-              ),
-            ),
-          ),
-          Expanded(
-            child: items.isEmpty
-                ? _buildEmptyState(isDark)
-                : ListView.builder(
-                    padding: const EdgeInsets.all(15),
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final barang = items[index];
-                      final jumlah = localKeranjang[barang.id] ?? 0;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.grey[850] : Colors.white,
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(
-                                isDark ? 0.3 : 0.04,
-                              ),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 70,
-                                height: 70,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  color: isDark
-                                      ? Colors.white10
-                                      : const Color(0xFFF1F4F8),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: barang.fotoBarang != null &&
-                                          barang.fotoBarang!.isNotEmpty
-                                      ? Image.network(
-                                          barang.fotoBarang!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return const Icon(
-                                              Icons.image_not_supported_rounded,
-                                              color: Colors.grey,
-                                            );
-                                          },
-                                        )
-                                      : const Icon(
-                                          Icons.inventory_2_rounded,
-                                          color: primaryBlue,
-                                          size: 30,
-                                        ),
-                                ),
-                              ),
-                              const SizedBox(width: 15),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      barang.namaBarang,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        color:
-                                            isDark ? Colors.white : primaryBlue,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "SN: ${barang.seri ?? '-'}",
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      "Stok Tersedia: ${barang.stok}",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: barang.stok <= 0
-                                            ? Colors.red
-                                            : Colors.green,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  IconButton(
-                                    onPressed: () => _kurangJumlah(barang),
-                                    icon: const Icon(
-                                      Icons.remove_circle_outline_rounded,
-                                    ),
-                                    color: secondaryBlue,
-                                    iconSize: 22,
-                                  ),
-                                  Text(
-                                    "$jumlah",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color:
-                                          isDark ? Colors.white : Colors.black,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: jumlah >= barang.stok
-                                        ? null
-                                        : () => _tambahJumlah(barang),
-                                    icon: const Icon(
-                                      Icons.add_circle_outline_rounded,
-                                    ),
-                                    color: secondaryBlue,
-                                    iconSize: 22,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
       ),
       bottomNavigationBar: items.isEmpty
           ? null
-          : Container(
-              padding: const EdgeInsets.fromLTRB(20, 15, 20, 25),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey[850] : Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PengajuanScreen(
-                        keranjang: localKeranjang,
-                        semuaBarang: widget.semuaBarang,
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  elevation: 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.assignment_turned_in_rounded, size: 20),
-                    const SizedBox(width: 10),
-                    Text(
-                      "Ajukan Peminjaman (${items.length} Barang)",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          : _buildBottomButton(
+              isDark: isDark,
+              items: items,
+              totalJumlah: totalJumlah,
             ),
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
+  Widget _buildHeader({
+    required bool isDark,
+    required Color cardColor,
+    required Color textColor,
+    required Color subTextColor,
+    required Color borderColor,
+    required int itemCount,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 4),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () => Navigator.pop(context),
+            borderRadius: BorderRadius.circular(100),
+            child: Container(
+              width: 43,
+              height: 43,
+              decoration: BoxDecoration(
+                color: cardColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: borderColor),
+              ),
+              child: Icon(
+                Icons.arrow_back_rounded,
+                color: textColor,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Keranjang",
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  "$itemCount barang dipilih",
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const BarangScreen(),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(100),
+            child: Container(
+              width: 47,
+              height: 47,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [primaryBlue, secondaryBlue],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryBlue.withOpacity(0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 7),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCartItem({
+    required BarangModel barang,
+    required int jumlah,
+    required bool isDark,
+    required Color cardColor,
+    required Color textColor,
+    required Color subTextColor,
+    required Color borderColor,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.14 : 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: isDark ? darkBg : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: barang.fotoBarang != null && barang.fotoBarang!.isNotEmpty
+                  ? Image.network(
+                      barang.fotoBarang!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.inventory_2_rounded,
+                          color: isDark ? accentBlue : primaryBlue,
+                          size: 32,
+                        );
+                      },
+                    )
+                  : Icon(
+                      Icons.inventory_2_rounded,
+                      color: isDark ? accentBlue : primaryBlue,
+                      size: 32,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  barang.namaBarang,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "SN: ${barang.seri ?? '-'}",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: barang.stok <= 0
+                        ? Colors.red.withOpacity(0.10)
+                        : Colors.green.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(
+                    barang.stok <= 0
+                        ? "Habis"
+                        : "Stok tersedia ${barang.stok}",
+                    style: TextStyle(
+                      color: barang.stok <= 0 ? Colors.red : Colors.green,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            children: [
+              _qtyButton(
+                icon: Icons.add_rounded,
+                color: jumlah >= barang.stok ? Colors.grey : primaryBlue,
+                onTap:
+                    jumlah >= barang.stok ? null : () => _tambahJumlah(barang),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Text(
+                  "$jumlah",
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _qtyButton(
+                icon: Icons.remove_rounded,
+                color: Colors.red,
+                onTap: () => _kurangJumlah(barang),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _qtyButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(100),
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: color,
+          size: 21,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomButton({
+    required bool isDark,
+    required List<BarangModel> items,
+    required int totalJumlah,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+      decoration: BoxDecoration(
+        color: isDark ? darkCard : Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(26),
+          topRight: Radius.circular(26),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.20 : 0.08),
+            blurRadius: 22,
+            offset: const Offset(0, -8),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PengajuanScreen(
+                    keranjang: localKeranjang,
+                    semuaBarang: widget.semuaBarang,
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.send_rounded, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  "Lanjutkan Pengajuan ($totalJumlah)",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark, Color subTextColor) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.shopping_cart_outlined,
-            size: 80,
-            color: isDark ? Colors.white10 : Colors.grey[300],
+            size: 78,
+            color: subTextColor.withOpacity(0.45),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 14),
           Text(
             "Keranjang masih kosong",
             style: TextStyle(
-              color: isDark ? Colors.grey[500] : Colors.grey,
-              fontWeight: FontWeight.w500,
+              color: subTextColor,
+              fontWeight: FontWeight.w800,
               fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Tambahkan barang untuk membuat peminjaman.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: subTextColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

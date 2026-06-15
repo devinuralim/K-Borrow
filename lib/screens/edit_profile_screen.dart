@@ -31,21 +31,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool isLoading = false;
 
   final Color primaryNavy = const Color(0xFF1d3557);
+  final Color secondaryBlue = const Color(0xFF457b9d);
+  final Color accentBlue = const Color(0xFFa8dadc);
   final Color darkBg = const Color(0xFF0F172A);
   final Color darkCard = const Color(0xFF1E293B);
 
   bool get isDarkMode => MyApp.themeNotifier.value == ThemeMode.dark;
 
-  Color get bgColor => isDarkMode ? darkBg : const Color(0xFFF1F5F9);
+  Color get bgColor => isDarkMode ? darkBg : const Color(0xFFF6F8FC);
   Color get cardColor => isDarkMode ? darkCard : Colors.white;
-  Color get textColor => isDarkMode ? Colors.white : Colors.black87;
+  Color get textColor => isDarkMode ? Colors.white : primaryNavy;
   Color get subTextColor =>
-      isDarkMode ? Colors.blueGrey.shade200 : Colors.grey.shade700;
-  Color get borderColor => isDarkMode ? Colors.white10 : Colors.grey.shade300;
+      isDarkMode ? Colors.blueGrey.shade200 : Colors.grey.shade600;
+  Color get borderColor => isDarkMode ? Colors.white10 : Colors.grey.shade200;
   Color get inputFillColor =>
       isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
   Color get readOnlyFillColor =>
-      isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+      isDarkMode ? const Color(0xFF334155) : const Color(0xFFE8EEF5);
+
   void initState() {
     super.initState();
 
@@ -103,7 +106,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-
       final data = jsonDecode(response.body);
 
       if (!mounted) return;
@@ -113,6 +115,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           SnackBar(
             content: Text(data['message'] ?? 'Profil berhasil diperbarui'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
 
@@ -122,6 +125,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           SnackBar(
             content: Text(data['message'] ?? 'Gagal update profil'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -129,9 +133,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Terjadi kesalahan: $e"),
+        const SnackBar(
+          content: Text("Gagal update profil"),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -161,7 +166,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     return null;
   }
- 
+
   Widget build(BuildContext context) {
     final String name = widget.userData?['name']?.toString() ?? '-';
     final String idPegawai = widget.userData?['id_pegawai']?.toString() ?? '-';
@@ -173,163 +178,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       builder: (context, mode, _) {
         return Scaffold(
           backgroundColor: bgColor,
-          appBar: AppBar(
-            title: const Text(
-              "Edit Profil",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            backgroundColor: isDarkMode ? darkCard : primaryNavy,
-            foregroundColor: Colors.white,
-            centerTitle: true,
-            elevation: 0,
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Card(
-              color: cardColor,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-                side: BorderSide(color: borderColor),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(18),
+          resizeToAvoidBottomInset: true,
+          body: SafeArea(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 420),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: Transform.translate(
+                    offset: Offset(0, 16 * (1 - value)),
+                    child: child,
+                  ),
+                );
+              },
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  14,
+                  20,
+                  MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     children: [
-                      Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          CircleAvatar(
-                            radius: 58,
-                            backgroundColor: isDarkMode
-                                ? const Color(0xFF334155)
-                                : primaryNavy.withOpacity(0.12),
-                            child: CircleAvatar(
-                              radius: 53,
-                              backgroundColor: cardColor,
-                              backgroundImage: _getProfileImage(fotoUrl),
-                              child: _getProfileImage(fotoUrl) == null
-                                  ? Icon(
-                                      Icons.person_rounded,
-                                      size: 60,
-                                      color: isDarkMode
-                                          ? Colors.white
-                                          : primaryNavy,
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          InkWell(
-                            onTap: pickImage,
-                            borderRadius: BorderRadius.circular(30),
-                            child: Container(
-                              padding: const EdgeInsets.all(9),
-                              decoration: BoxDecoration(
-                                color: primaryNavy,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: cardColor,
-                                  width: 2,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      _buildReadOnlyField(
-                        label: "Nama Lengkap",
-                        value: name,
-                        icon: Icons.person_rounded,
-                      ),
+                      _buildTopBar(),
                       const SizedBox(height: 14),
-
-                      _buildReadOnlyField(
-                        label: "ID Pegawai",
-                        value: idPegawai,
-                        icon: Icons.badge_rounded,
-                      ),
+                      _buildProfilePhoto(name, jabatan, fotoUrl),
                       const SizedBox(height: 14),
-
-                      _buildReadOnlyField(
-                        label: "Jabatan",
-                        value: jabatan,
-                        icon: Icons.work_rounded,
-                      ),
-                      const SizedBox(height: 18),
-
-                      _buildInputField(
-                        controller: emailController,
-                        label: "Email",
-                        icon: Icons.email_rounded,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value != null &&
-                              value.trim().isNotEmpty &&
-                              !value.contains('@')) {
-                            return "Email tidak valid";
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildInputField(
-                        controller: noWaController,
-                        label: "No WhatsApp",
-                        icon: Icons.phone_rounded,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildInputField(
-                        controller: alamatController,
-                        label: "Alamat",
-                        icon: Icons.location_on_rounded,
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 24),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: isLoading ? null : updateProfile,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryNavy,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor:
-                                primaryNavy.withOpacity(0.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: isLoading
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : const Text(
-                                  "Simpan Perubahan",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
+                      _buildLockedInfo(idPegawai, jabatan),
+                      const SizedBox(height: 14),
+                      _buildEditPanel(name),
+                      const SizedBox(height: 14),
+                      _buildSaveButton(),
                     ],
                   ),
                 ),
@@ -341,36 +225,304 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildReadOnlyField({
+  Widget _buildTopBar() {
+    return Row(
+      children: [
+        InkWell(
+          onTap: () {
+            Navigator.pop(context);
+          },
+          borderRadius: BorderRadius.circular(100),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: cardColor,
+              border: Border.all(color: borderColor),
+            ),
+            child: Icon(
+              Icons.arrow_back_rounded,
+              color: textColor,
+              size: 22,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            "Edit Profil",
+            style: TextStyle(
+              color: textColor,
+              fontSize: 23,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfilePhoto(String name, String jabatan, String fotoUrl) {
+    final imageProvider = _getProfileImage(fotoUrl);
+
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            Container(
+              width: 102,
+              height: 102,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [primaryNavy, secondaryBlue],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryNavy.withOpacity(0.22),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                backgroundColor: cardColor,
+                backgroundImage: imageProvider,
+                child: imageProvider == null
+                    ? Icon(
+                        Icons.person_rounded,
+                        size: 54,
+                        color: isDarkMode ? accentBlue : primaryNavy,
+                      )
+                    : null,
+              ),
+            ),
+            InkWell(
+              onTap: pickImage,
+              borderRadius: BorderRadius.circular(100),
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primaryNavy, secondaryBlue],
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: bgColor, width: 3),
+                ),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.white,
+                  size: 17,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 11),
+        Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          "Foto, email, WhatsApp, dan alamat bisa diperbarui",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: subTextColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLockedInfo(String idPegawai, String jabatan) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDarkMode
+              ? [darkCard, const Color(0xFF111827)]
+              : [primaryNavy, secondaryBlue],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _lockedMiniItem(
+              "ID Pegawai",
+              idPegawai,
+              Icons.badge_rounded,
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 32,
+            color: Colors.white.withOpacity(0.18),
+          ),
+          Expanded(
+            child: _lockedMiniItem(
+              "Jabatan",
+              jabatan,
+              Icons.work_rounded,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _lockedMiniItem(String label, String value, IconData icon) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: Colors.white, size: 20),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.72),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditPanel(String name) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        children: [
+          _readOnlyInfo(
+            label: "Nama Lengkap",
+            value: name,
+            icon: Icons.person_rounded,
+          ),
+          _divider(),
+          _buildInputField(
+            controller: emailController,
+            label: "Email",
+            icon: Icons.email_rounded,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value != null &&
+                  value.trim().isNotEmpty &&
+                  !value.contains('@')) {
+                return "Email tidak valid";
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 11),
+          _buildInputField(
+            controller: noWaController,
+            label: "No WhatsApp",
+            icon: Icons.phone_rounded,
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: 11),
+          _buildInputField(
+            controller: alamatController,
+            label: "Alamat",
+            icon: Icons.location_on_rounded,
+            maxLines: 2,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _readOnlyInfo({
     required String label,
     required String value,
     required IconData icon,
   }) {
-    return TextFormField(
-      initialValue: value,
-      readOnly: true,
-      style: TextStyle(
-        color: textColor,
-        fontWeight: FontWeight.w600,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: subTextColor),
-        prefixIcon: Icon(
-          icon,
-          color: isDarkMode ? Colors.white : primaryNavy,
+    return Row(
+      children: [
+        Container(
+          width: 39,
+          height: 39,
+          decoration: BoxDecoration(
+            color: Colors.grey.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: subTextColor, size: 20),
         ),
-        filled: true,
-        fillColor: readOnlyFillColor,
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: borderColor),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "$label • tidak bisa diubah",
+                style: TextStyle(
+                  color: subTextColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: primaryNavy),
+        Icon(
+          Icons.lock_rounded,
+          color: subTextColor,
+          size: 17,
         ),
-      ),
+      ],
     );
   }
 
@@ -389,33 +541,104 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       validator: validator,
       style: TextStyle(
         color: textColor,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
+        fontSize: 13,
       ),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: subTextColor),
+        labelStyle: TextStyle(
+          color: subTextColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
         prefixIcon: Icon(
           icon,
-          color: isDarkMode ? Colors.white : primaryNavy,
+          color: isDarkMode ? accentBlue : primaryNavy,
+          size: 20,
         ),
         filled: true,
         fillColor: inputFillColor,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(17),
           borderSide: BorderSide(color: borderColor),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: primaryNavy, width: 1.5),
+          borderRadius: BorderRadius.circular(17),
+          borderSide: BorderSide(
+            color: isDarkMode ? accentBlue : primaryNavy,
+            width: 1.4,
+          ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(17),
           borderSide: const BorderSide(color: Colors.red),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(17),
           borderSide: const BorderSide(color: Colors.red),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : updateProfile,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryNavy,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: primaryNavy.withOpacity(0.45),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: isLoading
+              ? const SizedBox(
+                  key: ValueKey("loading"),
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : const Row(
+                  key: ValueKey("save"),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      "Simpan Perubahan",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _divider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Divider(
+        height: 1,
+        thickness: 1,
+        color: borderColor,
       ),
     );
   }

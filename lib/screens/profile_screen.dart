@@ -23,16 +23,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final Color primaryNavy = const Color(0xFF1d3557);
   final Color secondaryBlue = const Color(0xFF457b9d);
+  final Color accentBlue = const Color(0xFFa8dadc);
   final Color darkBg = const Color(0xFF0F172A);
   final Color darkCard = const Color(0xFF1E293B);
 
   bool get isDarkMode => MyApp.themeNotifier.value == ThemeMode.dark;
 
-  Color get bgColor => isDarkMode ? darkBg : const Color(0xFFF1F5F9);
+  Color get bgColor => isDarkMode ? darkBg : const Color(0xFFF6F8FC);
   Color get cardColor => isDarkMode ? darkCard : Colors.white;
-  Color get textColor => isDarkMode ? Colors.white : Colors.black87;
+  Color get textColor => isDarkMode ? Colors.white : primaryNavy;
   Color get subTextColor =>
-      isDarkMode ? Colors.blueGrey.shade200 : Colors.grey.shade700;
+      isDarkMode ? Colors.blueGrey.shade200 : Colors.grey.shade600;
   Color get borderColor => isDarkMode ? Colors.white10 : Colors.grey.shade200;
 
   void initState() {
@@ -55,9 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             "Accept": "application/json",
             "Authorization": "Bearer $authToken",
           },
-          body: jsonEncode({
-            "fcm_token": fcmToken,
-          }),
+          body: jsonEncode({"fcm_token": fcmToken}),
         );
       }
     } catch (e) {
@@ -80,7 +79,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
-        print(response.body);
         final data = jsonDecode(response.body);
 
         setState(() {
@@ -89,18 +87,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           isLoading = false;
         });
       } else {
-        setState(() {
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
       }
     } catch (e) {
       debugPrint("PROFILE ERROR: $e");
 
       if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     }
   }
 
@@ -111,9 +104,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (_) => const LoginScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
@@ -125,6 +116,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final String jabatanToDisplay =
         (karyawanData?['jabatan'] ?? "Pegawai K2NET").toString();
+
+    final String idPegawai =
+        (karyawanData?['id_pegawai'] ?? userData?['id_pegawai'] ?? "-")
+            .toString();
 
     final String emailToDisplay = (userData?['email'] ?? "-").toString();
 
@@ -143,273 +138,227 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, mode, _) {
         return Scaffold(
           backgroundColor: bgColor,
-          appBar: AppBar(
-            title: const Text(
-              "Profil Pegawai",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            centerTitle: true,
-            backgroundColor: isDarkMode ? darkCard : primaryNavy,
-            foregroundColor: Colors.white,
-            elevation: 0,
-          ),
-          body: isLoading
-              ? Center(
-                  child: CircularProgressIndicator(
+          body: SafeArea(
+            child: isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: isDarkMode ? accentBlue : primaryNavy,
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      await _fetchProfile();
+                      await _updateTokenToDatabase();
+                    },
                     color: primaryNavy,
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    await _fetchProfile();
-                    await _updateTokenToDatabase();
-                  },
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Column(
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
                       children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.only(
-                            bottom: 35,
-                            top: 14,
-                            left: 20,
-                            right: 20,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDarkMode ? darkCard : primaryNavy,
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(35),
-                              bottomRight: Radius.circular(35),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Stack(
-                                alignment: Alignment.bottomRight,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 60,
-                                    backgroundColor: Colors.white,
-                                    child: CircleAvatar(
-                                      radius: 56,
-                                      backgroundImage:
-                                          userData?['foto_profile'] != null &&
-                                                  userData!['foto_profile']
-                                                      .toString()
-                                                      .isNotEmpty
-                                              ? NetworkImage(
-                                                  userData!['foto_profile'],
-                                                )
-                                              : null,
-                                      child: userData?['foto_profile'] == null
-                                          ? const Icon(Icons.person, size: 60)
-                                          : null,
-                                    ),
-                                  ),
-                                  InkWell(
-                                    onTap: () async {
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => EditProfileScreen(
-                                            userData: userData,
-                                          ),
-                                        ),
-                                      );
-
-                                      if (result == true) {
-                                        _fetchProfile();
-                                      }
-                                    },
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: secondaryBlue,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isDarkMode
-                                              ? darkCard
-                                              : primaryNavy,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        Icons.edit_rounded,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                nameToDisplay,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  jabatanToDisplay.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        _buildTopHeader(
+                          nameToDisplay,
+                          jabatanToDisplay,
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildInfo(
-                                      "ID PEGAWAI",
-                                      (karyawanData?['id_pegawai'] ?? "-")
-                                          .toString(),
-                                      Icons.badge_rounded,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 15),
-                                  Expanded(
-                                    child: _buildInfo(
-                                      "STATUS",
-                                      "Aktif",
-                                      Icons.verified_user_rounded,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              _buildInfo(
-                                "EMAIL",
-                                emailToDisplay,
-                                Icons.email_rounded,
-                                fullWidth: true,
-                              ),
-                              const SizedBox(height: 20),
-                              _buildInfo(
-                                "NO WHATSAPP",
-                                noWaToDisplay,
-                                Icons.phone_rounded,
-                                fullWidth: true,
-                              ),
-                              const SizedBox(height: 20),
-                              _buildInfo(
-                                "ALAMAT",
-                                alamatToDisplay,
-                                Icons.location_on_rounded,
-                                fullWidth: true,
-                              ),
-                              const SizedBox(height: 20),
-                              _buildInfo(
-                                "TANGGAL BERGABUNG",
-                                (karyawanData?['tanggal_bergabung'] ?? "-")
-                                    .toString(),
-                                Icons.calendar_month_rounded,
-                                fullWidth: true,
-                              ),
-                              const SizedBox(height: 25),
-                              _buildActionButton(
-                                title: "Ganti Password",
-                                subtitle: "Perbarui password akun kamu",
-                                icon: Icons.lock_reset_rounded,
-                                color: Colors.orange,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          const ChangePasswordScreen(),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              _buildActionButton(
-                                title: "Keluar dari Aplikasi",
-                                subtitle: "Logout dari akun ini",
-                                icon: Icons.logout_rounded,
-                                color: Colors.red,
-                                onTap: _logout,
-                              ),
-                              const SizedBox(height: 20),
-                            ],
-                          ),
+                        const SizedBox(height: 18),
+                        _buildIdentityStrip(idPegawai),
+                        const SizedBox(height: 14),
+                        _buildInfoPanel(
+                          emailToDisplay,
+                          noWaToDisplay,
+                          alamatToDisplay,
                         ),
                       ],
                     ),
                   ),
-                ),
+          ),
         );
       },
     );
   }
 
-  Widget _buildInfo(
-    String label,
-    String value,
-    IconData icon, {
-    bool fullWidth = false,
-  }) {
+  Widget _buildTopHeader(String name, String jabatan) {
+    final String? foto = userData?['foto_profile']?.toString();
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            Container(
+              width: 95,
+              height: 95,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [primaryNavy, secondaryBlue],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryNavy.withOpacity(0.25),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(3),
+              child: CircleAvatar(
+                backgroundColor: cardColor,
+                backgroundImage:
+                    foto != null && foto.isNotEmpty ? NetworkImage(foto) : null,
+                child: foto == null || foto.isEmpty
+                    ? Icon(
+                        Icons.person,
+                        size: 50,
+                        color: isDarkMode ? accentBlue : primaryNavy,
+                      )
+                    : null,
+              ),
+            ),
+            InkWell(
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditProfileScreen(userData: userData),
+                  ),
+                );
+
+                if (result == true) {
+                  _fetchProfile();
+                }
+              },
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: secondaryBlue,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: bgColor,
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.edit,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
         Text(
-          label,
+          name,
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.blueGrey.shade200 : Colors.blueGrey,
-            letterSpacing: 1,
+            color: textColor,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Container(
-          width: fullWidth ? double.infinity : null,
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: borderColor),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 6,
           ),
-          child: Row(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [primaryNavy, secondaryBlue],
+            ),
+            borderRadius: BorderRadius.circular(100),
+          ),
+          child: Text(
+            jabatan.toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIdentityStrip(String idPegawai) {
+    return Container(
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDarkMode
+              ? [darkCard, const Color(0xFF111827)]
+              : [primaryNavy, secondaryBlue],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: primaryNavy.withOpacity(isDarkMode ? 0.12 : 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _stripItem(
+              "ID Pegawai",
+              idPegawai,
+              Icons.badge_rounded,
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 34,
+            color: Colors.white.withOpacity(0.20),
+          ),
+          Expanded(
+            child: _stripItem(
+              "Status",
+              "Aktif",
+              Icons.verified_rounded,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stripItem(String label, String value, IconData icon) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: Colors.white, size: 21),
+        const SizedBox(width: 9),
+        Flexible(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isDarkMode ? Colors.white : primaryNavy,
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: textColor,
-                  ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.72),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -419,68 +368,183 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildActionButton({
+  Widget _buildInfoPanel(String email, String noWa, String alamat) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        children: [
+          _infoTile(
+            "Email",
+            email,
+            Icons.email_rounded,
+            Colors.blue,
+          ),
+          _divider(),
+          _infoTile(
+            "No WhatsApp",
+            noWa,
+            Icons.phone_rounded,
+            Colors.green,
+          ),
+          _divider(),
+          _infoTile(
+            "Alamat",
+            alamat,
+            Icons.location_on_rounded,
+            Colors.orange,
+            maxLines: 2,
+          ),
+          _divider(),
+          _actionTile(
+            title: "Ubah Password",
+            subtitle: "Ganti kata sandi akun",
+            icon: Icons.lock_reset_rounded,
+            color: Colors.deepOrange,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ChangePasswordScreen(),
+                ),
+              );
+            },
+          ),
+          _divider(),
+          _actionTile(
+            title: "Logout",
+            subtitle: "Keluar dari akun ini",
+            icon: Icons.logout_rounded,
+            color: Colors.red,
+            onTap: _logout,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoTile(
+    String label,
+    String value,
+    IconData icon,
+    Color color, {
+    int maxLines = 1,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Container(
+            width: 39,
+            height: 39,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: maxLines,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionTile({
     required String title,
     required String subtitle,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: cardColor,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withOpacity(0.12),
-                child: Icon(
-                  icon,
-                  color: color,
-                ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Container(
+              width: 39,
+              height: 39,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: textColor,
-                      ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: subTextColor,
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: subTextColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: isDarkMode
-                    ? Colors.blueGrey.shade200
-                    : Colors.grey.shade400,
-              ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: subTextColor,
+              size: 22,
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _divider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Divider(
+        height: 1,
+        thickness: 1,
+        color: borderColor,
       ),
     );
   }

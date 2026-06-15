@@ -15,10 +15,12 @@ import 'profile_screen.dart';
 import '../models/barang_model.dart';
 import '../services/cart_service.dart';
 import 'keranjang_screen.dart';
+import 'history_peminjaman_screen.dart';
 
 const Color primaryBlue = Color(0xFF1d3557);
 const Color secondaryBlue = Color(0xFF457b9d);
 const Color accentBlue = Color(0xFFa8dadc);
+const Color lightBg = Color(0xFFF6F8FC);
 const Color darkBg = Color(0xFF0F172A);
 const Color darkCard = Color(0xFF1E293B);
 
@@ -43,11 +45,12 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> allNotifData = [];
   List<dynamic> rekomendasiBarang = [];
   List<String> readIds = [];
+  List<dynamic> leaderboardData = [];
   bool hasNewNotification = false;
 
   bool get isDarkMode => MyApp.themeNotifier.value == ThemeMode.dark;
 
-  Color get bgColor => isDarkMode ? darkBg : const Color(0xFFF8FAFC);
+  Color get bgColor => isDarkMode ? darkBg : lightBg;
   Color get cardColor => isDarkMode ? darkCard : Colors.white;
   Color get textColor => isDarkMode ? Colors.white : primaryBlue;
   Color get subTextColor =>
@@ -169,6 +172,16 @@ class _HomeScreenState extends State<HomeScreen> {
         headers: headers,
       );
 
+      final leaderboardRes = await http.get(
+        Uri.parse("${AppConfig.baseUrl}/v1/leaderboard-peminjaman"),
+        headers: headers,
+      );
+
+      debugPrint("PEMINJAMAN STATUS: ${pinjamRes.statusCode}");
+      debugPrint("PEMINJAMAN BODY: ${pinjamRes.body}");
+      debugPrint("LEADERBOARD STATUS: ${leaderboardRes.statusCode}");
+      debugPrint("LEADERBOARD BODY: ${leaderboardRes.body}");
+
       if (profileRes.statusCode == 200 &&
           barangRes.statusCode == 200 &&
           pinjamRes.statusCode == 200) {
@@ -180,6 +193,12 @@ class _HomeScreenState extends State<HomeScreen> {
         if (rekomRes.statusCode == 200) {
           final rekomData = jsonDecode(rekomRes.body);
           rekomDataList = rekomData['data'] ?? [];
+        }
+
+        List leaderboardList = [];
+        if (leaderboardRes.statusCode == 200) {
+          final leaderboardBody = jsonDecode(leaderboardRes.body);
+          leaderboardList = leaderboardBody['data'] ?? [];
         }
 
         final List listBarang = barangData['data'] ?? [];
@@ -221,11 +240,14 @@ class _HomeScreenState extends State<HomeScreen> {
           currentActiveLoans = activePinjam.length;
 
           rekomendasiBarang = rekomDataList;
+          leaderboardData = leaderboardList;
           allNotifData = notifData;
 
           hasNewNotification = allNotifData.any(
             (item) => !readIds.contains(item['id'].toString()),
           );
+
+          debugPrint("ACTIVE LOANS = $currentActiveLoans");
 
           isLoading = false;
         });
@@ -245,15 +267,11 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, mode, _) {
         return Scaffold(
           backgroundColor: bgColor,
-          appBar: AppBar(
-            toolbarHeight: 0,
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            automaticallyImplyLeading: false,
-          ),
           body: isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: primaryBlue),
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: isDarkMode ? accentBlue : primaryBlue,
+                  ),
                 )
               : IndexedStack(
                   index: _selectedIndex,
@@ -270,142 +288,338 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBerandaContent() {
-    return RefreshIndicator(
-      onRefresh: _fetchDashboardAndProfile,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(25, 34, 25, 48),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDarkMode
-                      ? [darkCard, darkBg]
-                      : [primaryBlue, const Color(0xFF2b4a72)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(35),
-                  bottomRight: Radius.circular(35),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Halo,",
-                          style: TextStyle(
-                            color: accentBlue.withOpacity(0.85),
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          userName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          "Kelola peminjaman barang inventaris dengan mudah.",
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _toggleDarkMode,
-                    icon: Icon(
-                      isDarkMode
-                          ? Icons.light_mode_rounded
-                          : Icons.dark_mode_rounded,
-                      color: Colors.white,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.12),
-                    ),
-                  ),
-                ],
-              ),
+    return SafeArea(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: Offset(0, 16 * (1 - value)),
+              child: child,
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+          );
+        },
+        child: RefreshIndicator(
+          onRefresh: _fetchDashboardAndProfile,
+          color: primaryBlue,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Transform.translate(
-                    offset: const Offset(0, -25),
-                    child: Row(
-                      children: [
-                        _buildStatCard(
-                          "Total Barang",
-                          "$totalBarang",
-                          Icons.inventory_2_rounded,
-                          Colors.blue,
-                        ),
-                        const SizedBox(width: 15),
-                        _buildStatCard(
-                          "Peminjaman Aktif",
-                          "$totalPeminjaman",
-                          Icons.swap_horiz_rounded,
-                          Colors.teal,
-                        ),
-                      ],
-                    ),
+                  _buildHeaderNatural(),
+                  const SizedBox(height: 18),
+                  _buildMiniStats(),
+                  const SizedBox(height: 15),
+                  _sectionTitle(
+                    "Barang yang Sering Dipinjam",
+                    Icons.trending_up_rounded,
+                    Colors.orange,
                   ),
-                  if (rekomendasiBarang.isNotEmpty) ...[
-                    _buildCategoryHeader("Rekomendasi Untuk Anda"),
-                    _buildRekomendasiList(),
-                    const SizedBox(height: 8),
-                  ],
-                  _buildCategoryHeader("Menu Utama"),
-                  _buildMenuContainer([
-                    _menuItem(
-                      "Tambah Peminjaman",
-                      Icons.dashboard_customize_rounded,
-                      const BarangScreen(),
-                    ),
-                    _menuItem(
-                      "Barang Favorit",
-                      Icons.favorite_rounded,
-                      const FavoritScreen(),
-                    ),
-                    _menuItem(
-                      "Riwayat Pinjam",
-                      Icons.history_rounded,
-                      const RiwayatPeminjamanScreen(),
-                      badgeCount: currentActiveLoans,
-                    ),
-                  ]),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 9),
+                  _buildSeringDipinjamMini(),
+                  const SizedBox(height: 15),
+                  _sectionTitle(
+                    "Menu Utama",
+                    Icons.dashboard_customize_rounded,
+                    primaryBlue,
+                  ),
+                  const SizedBox(height: 9),
+                  _buildMenuUtama(),
+                  const SizedBox(height: 16),
+                  _sectionTitle(
+                    "Top Peminjam Bulan Ini",
+                    Icons.emoji_events_rounded,
+                    Colors.amber,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildLeaderboard(),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildRekomendasiList() {
+  Widget _buildLeaderboard() {
+    if (leaderboardData.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: borderColor),
+        ),
+        child: Text(
+          "Belum ada data leaderboard",
+          style: TextStyle(
+            color: subTextColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        children: List.generate(leaderboardData.length, (index) {
+          final item = leaderboardData[index];
+
+          String medal = "🏅";
+          if (index == 0) medal = "🥇";
+          if (index == 1) medal = "🥈";
+          if (index == 2) medal = "🥉";
+
+          return Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            decoration: BoxDecoration(
+              border: index != leaderboardData.length - 1
+                  ? Border(bottom: BorderSide(color: borderColor))
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Text(medal, style: const TextStyle(fontSize: 24)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item['nama'] ?? '-',
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(
+                    "${item['total_barang']} Barang",
+                    style: const TextStyle(
+                      color: Colors.amber,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildHeaderNatural() {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Halo,",
+                style: TextStyle(
+                  color: subTextColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                userName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        InkWell(
+          onTap: _toggleDarkMode,
+          borderRadius: BorderRadius.circular(100),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: isDarkMode
+                    ? [accentBlue.withOpacity(0.75), secondaryBlue]
+                    : [primaryBlue, secondaryBlue],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryBlue.withOpacity(0.22),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Icon(
+              isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniStats() {
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDarkMode
+              ? [darkCard, const Color(0xFF111827)]
+              : [primaryBlue, secondaryBlue],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: primaryBlue.withOpacity(isDarkMode ? 0.12 : 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _statInside(
+              "Total Barang",
+              "$totalBarang",
+              Icons.category_rounded,
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 36,
+            color: Colors.white.withOpacity(0.18),
+          ),
+          Expanded(
+            child: _statInside(
+              "Sedang Dipinjam",
+              "$totalPeminjaman",
+              Icons.sync_alt_rounded,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statInside(String title, String value, IconData icon) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: Colors.white, size: 22),
+        const SizedBox(width: 10),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.72),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionTitle(String title, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: isDarkMode && color == primaryBlue ? accentBlue : color,
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSeringDipinjamMini() {
+    if (rekomendasiBarang.isEmpty) {
+      return SizedBox(
+        height: 82,
+        child: Center(
+          child: Text(
+            "Belum ada data barang populer",
+            style: TextStyle(color: subTextColor, fontSize: 12),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
-      height: 132,
+      height: 86,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: rekomendasiBarang.length,
+        physics: const BouncingScrollPhysics(),
+        itemCount: rekomendasiBarang.length > 5 ? 5 : rekomendasiBarang.length,
         itemBuilder: (context, index) {
           final item = rekomendasiBarang[index];
 
@@ -418,15 +632,16 @@ class _HomeScreenState extends State<HomeScreen> {
               '';
 
           return InkWell(
+            borderRadius: BorderRadius.circular(20),
             onTap: () {
               final barang = BarangModel.fromJson(item);
-
               CartService.tambahBarang(barang);
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text("${barang.namaBarang} masuk ke keranjang"),
                   backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
                   duration: const Duration(seconds: 1),
                 ),
               );
@@ -441,30 +656,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
-            borderRadius: BorderRadius.circular(20),
             child: Container(
-              width: 185,
+              width: 190,
               margin: EdgeInsets.only(
-                right: index == rekomendasiBarang.length - 1 ? 0 : 12,
+                right: index == rekomendasiBarang.length - 1 ? 0 : 11,
               ),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: borderColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.035),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 54,
-                    height: 54,
+                    width: 58,
+                    height: 64,
                     decoration: BoxDecoration(
                       color: isDarkMode ? darkBg : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(16),
@@ -474,7 +681,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(16),
                             child: Image.network(
                               foto,
-                              fit: BoxFit.cover,
+                              fit: BoxFit.contain,
                               errorBuilder: (_, __, ___) {
                                 return Icon(
                                   Icons.inventory_2_rounded,
@@ -484,44 +691,24 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           )
                         : Icon(
-                            Icons.recommend_rounded,
-                            color: Colors.orange.shade700,
+                            Icons.inventory_2_rounded,
+                            color: isDarkMode ? accentBlue : primaryBlue,
                           ),
                   ),
-                  const SizedBox(width: 11),
+                  const SizedBox(width: 9),
                   Expanded(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.13),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            "Rekomendasi",
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.orange.shade700,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
                         Text(
                           namaBarang,
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: textColor,
-                            fontWeight: FontWeight.bold,
                             fontSize: 13,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -531,20 +718,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: subTextColor,
-                            fontSize: 11,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 5),
                         Text(
-                          "Stok: $stok",
+                          "Stok $stok",
                           style: TextStyle(
-                            color: stok == '0'
-                                ? Colors.red
-                                : isDarkMode
-                                    ? accentBlue
-                                    : Colors.green,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                            color: stok == '0' ? Colors.red : Colors.green,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
@@ -559,217 +743,328 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        selectedItemColor: isDarkMode ? accentBlue : primaryBlue,
-        unselectedItemColor: Colors.grey[400],
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: cardColor,
-        elevation: 0,
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.grid_view_rounded),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_none_rounded),
-                if (hasNewNotification)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: cardColor, width: 1.5),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            label: 'Notifikasi',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline_rounded),
-            label: 'Profil',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: borderColor),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                color: subTextColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 25, bottom: 12, left: 4),
-      child: Row(
-        children: [
-          if (title.toLowerCase().contains('rekomendasi')) ...[
-            Icon(
-              Icons.auto_awesome_rounded,
-              size: 18,
-              color: Colors.orange.shade700,
-            ),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuContainer(List<Widget> items) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(children: items),
-    );
-  }
-
-  Widget _menuItem(
-    String title,
-    IconData icon,
-    Widget destination, {
-    int badgeCount = 0,
-  }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isDarkMode ? darkBg : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          color: isDarkMode ? accentBlue : primaryBlue,
-          size: 18,
-        ),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: textColor,
-        ),
-      ),
-      trailing: badgeCount > 0
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                "$badgeCount",
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
+  Widget _buildMenuUtama() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 135,
+          child: Row(
+            children: [
+              Expanded(
+                child: _menuPrimary(
+                  title: "Buat Peminjaman",
+                  subtitle: "Pilih barang",
+                  icon: Icons.add_circle_rounded,
+                  destination: const BarangScreen(),
                 ),
               ),
-            )
-          : Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: Colors.grey[400],
-            ),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => destination,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _menuSimple(
+                  title: "Favorit",
+                  subtitle: "Barang pilihan",
+                  icon: Icons.favorite_rounded,
+                  color: Colors.pink,
+                  destination: const FavoritScreen(),
+                ),
+              ),
+            ],
           ),
-        );
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 135,
+          child: Row(
+            children: [
+              Expanded(
+                child: _menuSimple(
+                  title: "Peminjaman Aktif",
+                  subtitle: "Barang Yang dipinjam",
+                  icon: Icons.assignment_rounded,
+                  color: Colors.teal,
+                  destination: const RiwayatPeminjamanScreen(),
+                  badgeCount: currentActiveLoans,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _menuSimple(
+                  title: "History",
+                  subtitle: "Sudah selesai",
+                  icon: Icons.history_rounded,
+                  color: Colors.orange,
+                  destination: const HistoryPeminjamanScreen(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _menuPrimary({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Widget destination,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(30),
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
       },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [primaryBlue, secondaryBlue],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: primaryBlue.withOpacity(0.22),
+              blurRadius: 17,
+              offset: const Offset(0, 9),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -22,
+              bottom: -24,
+              child: Icon(
+                icon,
+                size: 92,
+                color: Colors.white.withOpacity(0.10),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: Colors.white, size: 42),
+                const Spacer(),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.76),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _menuSimple({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required Widget destination,
+    int badgeCount = 0,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(30),
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
+      },
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: borderColor),
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: color, size: 39),
+                const Spacer(),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            if (badgeCount > 0)
+              Positioned(
+                right: -6,
+                top: -6,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 25,
+                    minHeight: 25,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: cardColor, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    badgeCount > 99 ? "99+" : "$badgeCount",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      height: 74,
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(26),
+          topRight: Radius.circular(26),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDarkMode ? 0.20 : 0.08),
+            blurRadius: 22,
+            offset: const Offset(0, -8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _bottomItem(index: 0, label: "Beranda", icon: Icons.home_rounded),
+          _bottomItem(
+            index: 1,
+            label: "Notifikasi",
+            icon: Icons.notifications_rounded,
+            showDot: hasNewNotification,
+          ),
+          _bottomItem(index: 2, label: "Profil", icon: Icons.person_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _bottomItem({
+    required int index,
+    required String label,
+    required IconData icon,
+    bool showDot = false,
+  }) {
+    final bool active = _selectedIndex == index;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _selectedIndex = index),
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          height: 50,
+          decoration: BoxDecoration(
+            color: active
+                ? (isDarkMode
+                    ? accentBlue.withOpacity(0.13)
+                    : primaryBlue.withOpacity(0.10))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    icon,
+                    color: active
+                        ? (isDarkMode ? accentBlue : primaryBlue)
+                        : Colors.grey,
+                    size: 22,
+                  ),
+                  if (showDot)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                child: active
+                    ? Row(
+                        children: [
+                          const SizedBox(width: 7),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color: isDarkMode ? accentBlue : primaryBlue,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

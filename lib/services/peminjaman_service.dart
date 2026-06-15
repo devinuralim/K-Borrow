@@ -120,6 +120,55 @@ class PeminjamanService {
     }
   }
 
+  static Future<bool> kembalikanBarangMassal({
+    required List<int> ids,
+    required String kondisiPengembalian,
+    required String keterangan,
+    File? image,
+  }) async {
+    try {
+      final token = await AuthService.getToken();
+
+      final url = Uri.parse(
+        "${AppConfig.baseUrl}/v1/peminjaman/kembali-massal",
+      );
+
+      var request = http.MultipartRequest('POST', url);
+
+      request.headers.addAll({
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      });
+
+      for (int i = 0; i < ids.length; i++) {
+        request.fields['peminjaman_ids[$i]'] = ids[i].toString();
+      }
+
+      request.fields['kondisi_pengembalian'] = kondisiPengembalian;
+      request.fields['keterangan'] = keterangan;
+
+      if (image != null && image.path.isNotEmpty) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'bukti_pengembalian',
+            image.path,
+          ),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print("STATUS PENGEMBALIAN MASSAL: ${response.statusCode}");
+      print("BODY PENGEMBALIAN MASSAL: ${response.body}");
+
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (e) {
+      print("Exception pengembalian massal: $e");
+      return false;
+    }
+  }
+
   static Future<bool> uploadPerbaikan({
     required int id,
     required File buktiPerbaikan,
